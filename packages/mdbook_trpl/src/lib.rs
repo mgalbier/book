@@ -19,10 +19,14 @@ use pulldown_cmark::{Options, Parser};
 ///
 /// - `mdbook::new_cmark_parser` has an additional parameter which allows smart
 ///   punctuation to be enabled or disabled; we always enable it.
+/// - We do not use footnotes in the text at present, but this goes out of its
+///   way to match this up to the old footnotes behavior just to make sure the
+///   parsing etc. is all the same.
 pub fn parser(text: &str) -> Parser<'_> {
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_FOOTNOTES);
+    opts.insert(Options::ENABLE_OLD_FOOTNOTES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
     opts.insert(Options::ENABLE_TASKLISTS);
     opts.insert(Options::ENABLE_HEADING_ATTRIBUTES);

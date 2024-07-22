@@ -56,8 +56,8 @@ pub fn rewrite(text: &str) -> String {
 
     for event in parser {
         match (&mut state, event) {
-            (Default, Start(Tag::BlockQuote)) => {
-                state = StartingBlockquote(vec![Start(Tag::BlockQuote)]);
+            (Default, Start(Tag::BlockQuote(_))) => {
+                state = StartingBlockquote(vec![Start(Tag::BlockQuote(None))]);
             }
 
             (StartingBlockquote(blockquote_events), Text(content)) => {
@@ -110,7 +110,7 @@ pub fn rewrite(text: &str) -> String {
                 events.push(Start(tag));
             }
 
-            (InNote, End(TagEnd::BlockQuote)) => {
+            (InNote, End(TagEnd::BlockQuote(_))) => {
                 // As with the start of the block HTML, the closing HTML must be
                 // separated from the Markdown text by two newlines.
                 events.extend([
