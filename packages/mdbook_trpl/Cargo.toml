@@ -1,9 +1,19 @@
 [package]
-name = "mdbook-trpl-listing"
+name = "mdbook_trpl"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "mdbook-trpl-note"
+path = "src/bin/note.rs"
+
+[[bin]]
+name = "mdbook-trpl-listing"
+path = "src/bin/listing.rs"
+
+[[bin]]
+name = "mdbook-trpl-figure"
+path = "src/bin/figure.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
