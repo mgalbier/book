@@ -1,8 +1,6 @@
 use anyhow::{anyhow, Result};
 use html_parser::{Dom, Node};
-use mdbook::{
-    book::Book, preprocess::Preprocessor, utils::new_cmark_parser, BookItem,
-};
+use mdbook::{book::Book, preprocess::Preprocessor, BookItem};
 
 use pulldown_cmark::Event;
 use pulldown_cmark_to_cmark::cmark;
@@ -96,7 +94,7 @@ const OPEN_CAPTION: &'static str = "<figcaption>";
 const CLOSE_CAPTION: &'static str = "</figcaption>";
 
 fn rewrite_figure(text: &str) -> Result<String> {
-    let final_state = new_cmark_parser(text, true).try_fold(
+    let final_state = crate::parser(text).try_fold(
         State {
             current: None,
             events: Vec::new(),

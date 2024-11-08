@@ -3,7 +3,6 @@ use mdbook::{
     book::Book,
     errors::Result,
     preprocess::{Preprocessor, PreprocessorContext},
-    utils::new_cmark_parser,
     BookItem,
 };
 use pulldown_cmark::{html, Event};
@@ -90,7 +89,7 @@ impl Preprocessor for TrplListing {
 struct CompositeError(String);
 
 fn rewrite_listing(src: &str, mode: Mode) -> Result<String, String> {
-    let final_state = new_cmark_parser(src, true).try_fold(
+    let final_state = crate::parser(src).try_fold(
         ListingState {
             current: None,
             events: vec![],
@@ -319,7 +318,7 @@ impl ListingBuilder {
 
     fn build(self) -> Listing {
         let caption = self.caption.map(|caption_source| {
-            let events = new_cmark_parser(&caption_source, true);
+            let events = crate::parser(&caption_source);
             let mut buf = String::with_capacity(caption_source.len() * 2);
             html::push_html(&mut buf, events);
 

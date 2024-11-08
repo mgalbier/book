@@ -2,7 +2,6 @@ use mdbook::{
     book::Book,
     errors::Result,
     preprocess::{Preprocessor, PreprocessorContext},
-    utils::new_cmark_parser,
     BookItem,
 };
 use pulldown_cmark::{
@@ -35,11 +34,7 @@ impl Preprocessor for TrplNote {
         "simple-note-preprocessor"
     }
 
-    fn run(
-        &self,
-        _ctx: &PreprocessorContext,
-        mut book: Book,
-    ) -> Result<mdbook::book::Book> {
+    fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
         book.for_each_mut(|item| {
             if let BookItem::Chapter(ref mut chapter) = item {
                 chapter.content = rewrite(&chapter.content);
@@ -54,7 +49,7 @@ impl Preprocessor for TrplNote {
 }
 
 pub fn rewrite(text: &str) -> String {
-    let parser = new_cmark_parser(text, true);
+    let parser = crate::parser(text);
 
     let mut events = Vec::new();
     let mut state = Default;

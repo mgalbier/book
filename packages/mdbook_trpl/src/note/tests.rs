@@ -188,7 +188,7 @@ fn table_in_quote() {
 }
 
 fn render_markdown(text: &str) -> String {
-    let parser = new_cmark_parser(text, true);
+    let parser = crate::parser(text);
     let mut buf = String::new();
     pulldown_cmark::html::push_html(&mut buf, parser);
     buf
