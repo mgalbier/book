@@ -63,7 +63,7 @@ impl Preprocessor for TrplListing {
     fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
         let mode = Mode::from_context(ctx, self.name())?;
 
-        let mut errors: Vec<String> = vec![];
+        let mut errors = vec![];
         book.for_each_mut(|item| {
             if let BookItem::Chapter(ref mut chapter) = item {
                 match rewrite_listing(&chapter.content, mode) {

@@ -33,6 +33,7 @@ impl Mode {
             })
             .transpose()?
             .unwrap_or(Mode::Default);
+
         Ok(mode)
     }
 }
