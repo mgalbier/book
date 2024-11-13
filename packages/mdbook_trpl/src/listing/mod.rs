@@ -89,116 +89,109 @@ impl Preprocessor for TrplListing {
 struct CompositeError(String);
 
 fn rewrite_listing(src: &str, mode: Mode) -> Result<String, String> {
-    let final_state = crate::parser(src).try_fold(
-        ListingState {
-            current: None,
-            events: vec![],
-        },
-        |mut state, ev| {
-            match ev {
-                Event::Html(tag) => {
-                    if tag.starts_with("<Listing") {
-                        state.open_listing(tag, mode)?;
-                    } else if tag.starts_with("</Listing>") {
-                        state.close_listing(tag, mode);
-                    } else {
-                        state.events.push(Ok(Event::Html(tag)));
-                    }
+    match mode {
+        Mode::Default => {
+            let final_state = crate::parser(src).try_fold(
+                RewriteState {
+                    current: None,
+                    events: vec![],
+                },
+                |mut state, ev| {
+                    match ev {
+                        Event::Html(tag) => {
+                            if tag.starts_with("<Listing") {
+                                state.open_listing(tag, mode)?;
+                            } else if tag.starts_with("</Listing>") {
+                                state.close_listing(tag);
+                            } else {
+                                state.events.push(Ok(Event::Html(tag)));
+                            }
+                        }
+                        ev => state.events.push(Ok(ev)),
+                    };
+                    Ok::<RewriteState<'_>, String>(state)
+                },
+            )?;
+
+            if final_state.current.is_some() {
+                return Err("Unclosed listing".into());
+            }
+
+            let (events, errors): (Vec<_>, Vec<_>) =
+                final_state.events.into_iter().partition(|e| e.is_ok());
+
+            if !errors.is_empty() {
+                return Err(errors
+                    .into_iter()
+                    .map(|e| e.unwrap_err())
+                    .collect::<Vec<String>>()
+                    .join("\n"));
+            }
+
+            let mut buf = String::with_capacity(src.len() * 2);
+            cmark(events.into_iter().map(|ok| ok.unwrap()), &mut buf)
+                .map_err(|e| format!("{e}"))?;
+
+            Ok(buf)
+        }
+        Mode::Simple => {
+            // The output text should be very slightly *shorter* than the input,
+            // so we know this is a reasonable size for the buffer.
+            let mut rewritten = String::with_capacity(src.len());
+            let mut current_closing = None;
+            for line in src.lines() {
+                if line.starts_with("<Listing") && (line.ends_with(">")) {
+                    let listing =
+                        ListingBuilder::from_tag(&line)?.build(Mode::Simple);
+                    rewritten.push_str(&listing.opening_text());
+                    current_closing = Some(listing.closing_text("\n"));
+                } else if line == "</Listing>" {
+                    let closing =
+                        current_closing.as_ref().ok_or_else(|| {
+                            String::from(
+                                "Closing `</Listing>` without opening tag.",
+                            )
+                        })?;
+                    rewritten.push_str(closing);
+                } else {
+                    rewritten.push_str(line);
+                    rewritten.push('\n');
                 }
-                ev => state.events.push(Ok(ev)),
-            };
-            Ok::<ListingState<'_>, String>(state)
-        },
-    )?;
+            }
 
-    if final_state.current.is_some() {
-        return Err("Unclosed listing".into());
+            // Since we always push a `'\n'` onto the end of the new string and
+            // `.lines()` does not tell us whether there *was* such a character,
+            // this makes the output match the input, and thus avoids adding new
+            // newlines after conversion.
+            if !src.ends_with('\n') {
+                rewritten.pop();
+            }
+
+            Ok(rewritten)
+        }
     }
-
-    let (events, errors): (Vec<_>, Vec<_>) =
-        final_state.events.into_iter().partition(|e| e.is_ok());
-
-    if !errors.is_empty() {
-        return Err(errors
-            .into_iter()
-            .map(|e| e.unwrap_err())
-            .collect::<Vec<String>>()
-            .join("\n"));
-    }
-
-    let mut buf = String::with_capacity(src.len() * 2);
-    cmark(events.into_iter().map(|ok| ok.unwrap()), &mut buf)
-        .map_err(|e| format!("{e}"))?;
-    Ok(buf)
 }
 
-struct ListingState<'e> {
+struct RewriteState<'e> {
     current: Option<Listing>,
     events: Vec<Result<Event<'e>, String>>,
 }
 
-impl<'e> ListingState<'e> {
+impl<'e> RewriteState<'e> {
     fn open_listing(
         &mut self,
         tag: pulldown_cmark::CowStr<'_>,
         mode: Mode,
     ) -> Result<(), String> {
-        // We do not *keep* the version constructed here, just temporarily
-        // construct it so the HTML parser, which expects properly closed tags
-        // to parse it as a *tag* rather than a *weird text node*, will accept
-        // it and provide a useful view of it.
-        let to_parse = tag.to_owned().to_string() + "</Listing>";
-        let listing = Dom::parse(&to_parse)
-            .map_err(|e| e.to_string())?
-            .children
-            .into_iter()
-            .filter_map(|node| match node {
-                html_parser::Node::Element(element) => Some(element.attributes),
-                html_parser::Node::Text(_) | html_parser::Node::Comment(_) => {
-                    None
-                }
-            })
-            .flatten()
-            .try_fold(ListingBuilder::new(), |builder, (key, maybe_value)| {
-                match (key.as_str(), maybe_value) {
-                    ("number", Some(value)) => Ok(builder.with_number(value)),
-
-                    ("caption", Some(value)) => Ok(builder.with_caption(value)),
-
-                    ("file-name", Some(value)) => {
-                        Ok(builder.with_file_name(value))
-                    }
-
-                    (attr @ "file-name", None)
-                    | (attr @ "caption", None)
-                    | (attr @ "number", None) => {
-                        Err(format!("Missing value for attribute: '{attr}'"))
-                    }
-
-                    (attr, _) => {
-                        Err(format!("Unsupported attribute name: '{attr}'"))
-                    }
-                }
-            })?
-            .build();
-
-        let opening_event = match mode {
-            Mode::Default => {
-                let opening_html = listing.opening_html();
-                Event::Html(opening_html.into())
-            }
-            Mode::Simple => {
-                let opening_text = listing.opening_text();
-                Event::Text(opening_text.into())
-            }
-        };
+        let listing = ListingBuilder::from_tag(&tag)?.build(mode);
+        let opening_event = Event::Html(listing.opening_html().into());
 
         self.current = Some(listing);
         self.events.push(Ok(opening_event));
         Ok(())
     }
 
-    fn close_listing(&mut self, tag: pulldown_cmark::CowStr<'_>, mode: Mode) {
+    fn close_listing(&mut self, tag: pulldown_cmark::CowStr<'_>) {
         let trailing = if !tag.ends_with('>') {
             tag.replace("</Listing>", "")
         } else {
@@ -207,16 +200,8 @@ impl<'e> ListingState<'e> {
 
         match &self.current {
             Some(listing) => {
-                let closing_event = match mode {
-                    Mode::Default => {
-                        let closing_html = listing.closing_html(&trailing);
-                        Event::Html(closing_html.into())
-                    }
-                    Mode::Simple => {
-                        let closing_text = listing.closing_text(&trailing);
-                        Event::Text(closing_text.into())
-                    }
-                };
+                let closing_event =
+                    Event::Html(listing.closing_html(&trailing).into());
 
                 self.current = None;
                 self.events.push(Ok(closing_event));
@@ -270,7 +255,7 @@ impl Listing {
     fn opening_text(&self) -> String {
         self.file_name
             .as_ref()
-            .map(|file_name| format!("\nFilename: {file_name}\n"))
+            .map(|file_name| format!("Filename: {file_name}\n"))
             .unwrap_or_default()
     }
 
@@ -286,6 +271,9 @@ impl Listing {
     }
 }
 
+/// Note: Although this has the same structure as [`Listing`], it does not have
+/// the same *semantics*. In particular, this has the *source* for the `caption`
+/// while `Listing` has the *rendered* version.
 struct ListingBuilder {
     number: Option<String>,
     caption: Option<String>,
@@ -293,12 +281,46 @@ struct ListingBuilder {
 }
 
 impl ListingBuilder {
-    fn new() -> ListingBuilder {
-        ListingBuilder {
-            number: None,
-            caption: None,
-            file_name: None,
-        }
+    fn from_tag(tag: &str) -> Result<ListingBuilder, String> {
+        let to_parse = format!("{tag}</Listing>");
+        Dom::parse(&to_parse)
+            .map_err(|e| e.to_string())?
+            .children
+            .into_iter()
+            .filter_map(|node| match node {
+                html_parser::Node::Element(element) => Some(element.attributes),
+                html_parser::Node::Text(_) | html_parser::Node::Comment(_) => {
+                    None
+                }
+            })
+            .flatten()
+            .try_fold(
+                ListingBuilder {
+                    number: None,
+                    caption: None,
+                    file_name: None,
+                },
+                |builder, (key, maybe_value)| match (key.as_str(), maybe_value)
+                {
+                    ("number", Some(value)) => Ok(builder.with_number(value)),
+
+                    ("caption", Some(value)) => Ok(builder.with_caption(value)),
+
+                    ("file-name", Some(value)) => {
+                        Ok(builder.with_file_name(value))
+                    }
+
+                    (attr @ "file-name", None)
+                    | (attr @ "caption", None)
+                    | (attr @ "number", None) => {
+                        Err(format!("Missing value for attribute: '{attr}'"))
+                    }
+
+                    (attr, _) => {
+                        Err(format!("Unsupported attribute name: '{attr}'"))
+                    }
+                },
+            )
     }
 
     fn with_number(mut self, value: String) -> Self {
@@ -316,17 +338,20 @@ impl ListingBuilder {
         self
     }
 
-    fn build(self) -> Listing {
-        let caption = self.caption.map(|caption_source| {
-            let events = crate::parser(&caption_source);
-            let mut buf = String::with_capacity(caption_source.len() * 2);
-            html::push_html(&mut buf, events);
+    fn build(self, mode: Mode) -> Listing {
+        let caption = match mode {
+            Mode::Default => self.caption.map(|caption_source| {
+                let events = crate::parser(&caption_source);
+                let mut buf = String::with_capacity(caption_source.len() * 2);
+                html::push_html(&mut buf, events);
 
-            // This is not particularly principled, but since the only
-            // place it is used is here, for caption source handling, it
-            // is “fine”.
-            buf.replace("<p>", "").replace("</p>", "").replace('\n', "")
-        });
+                // This is not particularly principled, but since the only
+                // place it is used is here, for caption source handling, it
+                // is “fine”.
+                buf.replace("<p>", "").replace("</p>", "").replace('\n', "")
+            }),
+            Mode::Simple => self.caption,
+        };
 
         Listing {
             number: self.number.map(String::from),
