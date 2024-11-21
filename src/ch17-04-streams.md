@@ -2,9 +2,9 @@
 
 So far in this chapter, we have mostly stuck to individual futures. The one big
 exception was the async channel we used. Recall how we used the receiver for our
-async channel in the [“Message Passing”][17-02-messages] earlier in the chapter.
-The async `recv` method produces a sequence of items over time. This is an
-instance of a much more general pattern, often called a *stream*.
+async channel in the [“Message Passing”][17-02-messages]<!-- ignore --> earlier
+in the chapter. The async `recv` method produces a sequence of items over time.
+This is an instance of a much more general pattern, often called a *stream*.
 
 A sequence of items is something we’ve seen before, when we looked at the
 `Iterator` trait in Chapter 13, but there are two differences between iterators

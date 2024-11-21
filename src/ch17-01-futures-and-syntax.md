@@ -44,8 +44,8 @@ everything you need to know as we go.
 To keep this chapter focused on learning async, rather than juggling parts of
 the ecosystem, we have created the `trpl` crate (`trpl` is short for “The Rust
 Programming Language”). It re-exports all the types, traits, and functions
-you’ll need, primarily from the [`futures`][futures-crate] and [`tokio`][tokio]
-crates.
+you’ll need, primarily from the [`futures`][futures-crate]<!-- ignore --> and
+[`tokio`][tokio]<!-- ignore --> crates.
 
 - The `futures` crate is an official home for Rust experimentation for async
   code, and is actually where the `Future` type was originally designed.
@@ -57,9 +57,10 @@ crates.
 
 In some cases, `trpl` also renames or wraps the original APIs to let us stay
 focused on the details relevant to this chapter. If you want to understand what
-the crate does, we encourage you to check out [its source code][crate-source].
-You’ll be able to see what crate each re-export comes from, and we’ve left
-extensive comments explaining what the crate does.
+the crate does, we encourage you to check out [its source
+code][crate-source]<!-- ignore -->. You’ll be able to see what crate each
+re-export comes from, and we’ve left extensive comments explaining what the
+crate does.
 
 Create a new binary project named `hello-async` and add the `trpl` crate as a
 dependency:
@@ -100,13 +101,13 @@ also async.
 
 We have to explicitly await both of these futures, because futures in Rust are
 *lazy*: they don’t do anything until you ask them to with `await`. (In fact,
-Rust will show a compiler warning if you don’t use a future.) This should
-remind you of our discussion of iterators [back in Chapter 13][iterators-lazy].
-Iterators do nothing unless you call their `next` method—whether directly, or
-using `for` loops or methods such as `map` which use `next` under the hood. With
-futures, the same basic idea applies: they do nothing unless you explicitly ask
-them to. This laziness allows Rust to avoid running async code until it’s
-actually needed.
+Rust will show a compiler warning if you don’t use a future.) This should remind
+you of our discussion of iterators [back in Chapter 13][iterators-lazy]<!--
+ignore -->. Iterators do nothing unless you call their `next` method—whether
+directly, or using `for` loops or methods such as `map` which use `next` under
+the hood. With futures, the same basic idea applies: they do nothing unless you
+explicitly ask them to. This laziness allows Rust to avoid running async code
+until it’s actually needed.
 
 > Note: This is different from the behavior we saw when using `thread::spawn` in
 > the previous chapter, where the closure we passed to another thread started
@@ -174,7 +175,7 @@ fn page_title(url: &str) -> impl Future<Output = Option<String>> + '_ {
 Let’s walk through each part of the transformed version:
 
 * It uses the `impl Trait` syntax we discussed back in the [“Traits as
-  Parameters”][impl-trait] section in Chapter 10.
+  Parameters”][impl-trait] <!-- ignore --> section in Chapter 10.
 * The returned trait is a `Future`, with an associated type of `Output`. Notice
   that the `Output` type is `Option<String>`, which is the same as the the
   original return type from the `async fn` version of `page_title`.
