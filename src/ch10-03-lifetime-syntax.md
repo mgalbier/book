@@ -392,7 +392,7 @@ the `ImportantExcerpt` goes out of scope, so the reference in the
 ### Lifetime Elision
 
 You’ve learned that every reference has a lifetime and that you need to specify
-lifetime parameters for functions or structs that use references. However, we
+lifetime parameters for functions that return references or structs that use references. However, we
 had a function in Listing 4-9, shown again in Listing 10-25, that compiled
 without lifetime annotations.
 
